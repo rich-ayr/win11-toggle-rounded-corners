@@ -325,13 +325,15 @@ int main() try
                        "fallback method by default in case the .rdata method fails."sv},
       Option{L"verbose"sv, L"Enables verbose output."sv},
       Option{L"disable"sv, L"Always disables rounded corners. Has precedence over --enable."sv},
-      Option{L"enable"sv, L"Always enables rounded corners."sv}
+      Option{L"enable"sv, L"Always enables rounded corners."sv},
+      Option{L"small"sv, L"Enables small rounded corners."sv}
   };
 
   set_verbose(options[L"verbose"sv].value);
   
   auto should_disable = options[L"disable"sv].value;
-  auto const should_override_toggle = should_disable || options[L"enable"sv].value;
+  auto const should_override_toggle = should_disable || options[L"enable"sv].value || options[L"small"sv].value;
+  const bool should_small = options[L"small"sv].value;
 
   if (!enable_privilege(SE_DEBUG_NAME))
     throw std::runtime_error(std::format("Failed to enable '{}', make sure you are running as admin.", SE_DEBUG_NAME));
@@ -407,6 +409,7 @@ int main() try
                                       return std::make_tuple(flt, rebased);
                                     })) {
       constexpr auto kNearZeroRadius = 0.001f;
+      constexpr auto kSmallRadius = 4.0f;
       float value{};
       SIZE_T out_size{};
 
@@ -417,7 +420,14 @@ int main() try
       if (!should_override_toggle)
         should_disable = !is_disabled;
 
-      auto const new_border_radius = should_disable ? kNearZeroRadius : original;
+      float new_border_radius;
+      if (should_disable)
+        new_border_radius = kNearZeroRadius;
+      else if (should_small)
+        new_border_radius = kSmallRadius;
+      else
+        new_border_radius = original;
+
       verbose(std::format("Writing {} to border radius {:#x}\n", new_border_radius, reinterpret_cast<ZyanU64>(ptr)));
 
       DWORD old_protect{};
