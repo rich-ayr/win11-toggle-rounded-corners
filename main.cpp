@@ -313,6 +313,28 @@ bool enable_privilege(LPCTSTR name) noexcept {
   return true;
 }
 
+std::string get_error_string(DWORD error) noexcept {
+  std::string result{};
+  char *buf = nullptr;
+  DWORD len = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                             nullptr, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buf, 0, nullptr);
+  if (len) {
+    result.assign(buf, len);
+    LocalFree(buf);
+  } else {
+    result = std::format("Unknown error code: ({:#x})", error);
+  }
+  // Most messages end with \r\n by default
+  while (!result.empty() && std::isspace(result.back())) {
+    result.pop_back();
+  }
+  return result;
+}
+
+std::string get_last_error_string() noexcept {
+  return get_error_string(GetLastError());
+}
+
 int main() try
 {
   using namespace std::string_view_literals;
@@ -350,7 +372,7 @@ int main() try
 
   auto const dwm_process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwm_pid);
   if (!dwm_process)
-    throw std::runtime_error(std::format("Failed to open dwm.exe process, status: {:#x}!", GetLastError()));
+    throw std::runtime_error(std::format("Failed to open dwm.exe process: {}", get_last_error_string()));
 
   verbose(std::format("Opened process handle {:#x} to dwm.exe.\n", reinterpret_cast<uint64_t>(dwm_process)));
 
@@ -373,7 +395,7 @@ int main() try
     uint64_t desktop_manager_inst{};
     SIZE_T out_size{};
     if (!ReadProcessMemory(dwm_process, desktop_manager_ptr, &desktop_manager_inst, sizeof(void *), &out_size) || !desktop_manager_inst)
-      throw std::runtime_error(std::format("Failed to read value of g_pdmInstance from dwm.exe , status: {:#x}.\n", GetLastError()));
+      throw std::runtime_error(std::format("Failed to read value of g_pdmInstance from dwm.exe: {}\n", get_last_error_string()));
 
     auto desktop_manager = reinterpret_cast<desktop_manager_proto *>(desktop_manager_inst);
     verbose(std::format("  g_pdmInstance = (CDesktopManager *){:#x};\n\n", desktop_manager_inst));
@@ -381,7 +403,7 @@ int main() try
     if (!should_override_toggle) {
       out_size = {};
       if (!ReadProcessMemory(dwm_process, &desktop_manager->enable_sharp_corners, &should_disable, 1, &out_size) || out_size != 1)
-        throw std::runtime_error(std::format("Failed to read 'enable_sharp_corners' from dwm.exe, status: {:#x}.\n", GetLastError()));
+        throw std::runtime_error(std::format("Failed to read 'enable_sharp_corners' from dwm.exe: {}\n", get_last_error_string()));
 
       verbose(std::format("Rounded corners were '{}', they are now being {}...\n", boolean_values[should_disable],
                                boolean_values[(!should_disable)]));
@@ -392,7 +414,7 @@ int main() try
 
     out_size = {};
     if (!WriteProcessMemory(dwm_process, &desktop_manager->enable_sharp_corners, &should_disable, 1, &out_size) || out_size != 1)
-      throw std::runtime_error(std::format("Failed to write 'enable_sharp_corners' to dwm.exe, status: {:#x}.\n", GetLastError()));
+      throw std::runtime_error(std::format("Failed to write 'enable_sharp_corners' to dwm.exe: {}\n", get_last_error_string()));
   } else {
     // .rdata method: writes to floats related to rounding
     auto udwm_dll = LoadLibraryExA("udwm.dll", nullptr, DONT_RESOLVE_DLL_REFERENCES);
@@ -411,7 +433,7 @@ int main() try
       SIZE_T out_size{};
 
       if (!ReadProcessMemory(dwm_process, ptr, &value, sizeof(float), &out_size) || out_size != sizeof(float))
-        throw std::runtime_error(std::format("Failed to read rounding float from dwm.exe, status: {:#x}.\n", GetLastError()));
+        throw std::runtime_error(std::format("Failed to read rounding float from dwm.exe: {}\n", get_last_error_string()));
 
       auto const is_disabled = value == kNearZeroRadius;
       if (!should_override_toggle)
@@ -422,14 +444,14 @@ int main() try
 
       DWORD old_protect{};
       if (!VirtualProtectEx(dwm_process, ptr, sizeof(float), PAGE_READWRITE, &old_protect))
-        throw std::runtime_error(std::format("Failed to unprotect memory, last error: {}.\n", GetLastError()));
+        throw std::runtime_error(std::format("Failed to unprotect memory, last error: {}\n", get_last_error_string()));
 
       out_size = {};
       if (!WriteProcessMemory(dwm_process, ptr, &new_border_radius, sizeof(float), &out_size) || out_size != sizeof(float))
-        throw std::runtime_error(std::format("Failed to write new border radius to dwm.exe, last error: {}.\n", GetLastError()));
+        throw std::runtime_error(std::format("Failed to write new border radius to dwm.exe, last error: {}\n", get_last_error_string()));
 
       if (!VirtualProtectEx(dwm_process, ptr, sizeof(float), old_protect, &old_protect))
-        throw std::runtime_error(std::format("Failed to protect memory, last error: {}.\n", GetLastError()));
+        throw std::runtime_error(std::format("Failed to protect memory, last error: {}\n", get_last_error_string()));
     }
   }
 
