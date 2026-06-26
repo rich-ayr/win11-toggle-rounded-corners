@@ -6,14 +6,14 @@ A simple utility to disable rounded window corners on Windows 11
 
 [![](https://i.imgur.com/5HIQf7n.png)](https://i.imgur.com/5HIQf7n.png)
 
-**Download**
+## Download
 
 An installer as well as the standalone binary for portable use can be [**downloaded here**](https://github.com/oberrich/win11-toggle-rounded-corners/releases).
 The program requires **administrator** privileges.
 
 Some Anti-Virus products may block the access to `dwm.exe`
 
-**Usage**
+## Usage
 
 Run as administrator. The patch is applied to `dwm.exe` in memory, so it does **not** survive a restart of `dwm.exe` (logoff, reboot, or a `dwm.exe` crash) on its own.
 
@@ -24,7 +24,7 @@ win11-toggle-rounded-corners.exe --enable    # restore rounded corners
 
 The **installer** applies the patch and registers a logon scheduled task that re-applies it on each boot, so the change persists across restarts. The **portable** binary does a one-shot patch with no persistence.
 
-**Reverting**
+## Reverting
 
 How to undo the patch depends on how you installed it:
 
@@ -37,7 +37,7 @@ If a leftover task is still squaring corners after uninstalling, you can remove 
 schtasks /Delete /F /TN "Run win11-toggle-rounded-corners as admin on logon"
 ```
 
-**Build**
+## Build
 
 First clone the repo **recursive**ly
 
