@@ -25,8 +25,8 @@ OutputBaseFilename=win11-toggle-rounded-corners-setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64os
+ArchitecturesInstallIn64BitMode=x64os
 MissingRunOnceIdsWarning=no
 OutputDir=build
 
@@ -38,14 +38,60 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "LICENSE"; DestDir: "{app}";
 Source: "build\win11-toggle-rounded-corners.exe"; DestDir: "{app}"
 
+[CustomMessages]
+OptionsPageCaption=Rounded Corners Options
+OptionsPageDescription=Choose how you want rounded corners to be handled
+DisableOption=Disable rounded corners completely
+SmallOption=Enable small rounded corners
+
+[Code]
+var
+  OptionsPage: TWizardPage;
+  DisableRadio: TRadioButton;
+  SmallRadio: TRadioButton;
+
+procedure InitializeWizard;
+begin
+  // Create custom options page
+  OptionsPage := CreateCustomPage(wpSelectTasks, 
+    ExpandConstant('{cm:OptionsPageCaption}'), 
+    ExpandConstant('{cm:OptionsPageDescription}'));
+  
+  // Create radio buttons
+  DisableRadio := TRadioButton.Create(OptionsPage);
+  DisableRadio.Parent := OptionsPage.Surface;
+  DisableRadio.Caption := ExpandConstant('{cm:DisableOption}');
+  DisableRadio.Left := 0;
+  DisableRadio.Top := 16;
+  DisableRadio.Width := OptionsPage.SurfaceWidth;
+  DisableRadio.Checked := True; // Default selection
+  
+  SmallRadio := TRadioButton.Create(OptionsPage);
+  SmallRadio.Parent := OptionsPage.Surface;
+  SmallRadio.Caption := ExpandConstant('{cm:SmallOption}');
+  SmallRadio.Left := 0;
+  SmallRadio.Top := 40;
+  SmallRadio.Width := OptionsPage.SurfaceWidth;
+end;
+
+function GetSelectedParameter(Param: String): String;
+begin
+  if DisableRadio.Checked then
+    Result := '--disable'
+  else if SmallRadio.Checked then
+    Result := '--small'
+  else
+    Result := '--disable'; // fallback
+end;
+
 [Run]
 Filename: "schtasks"; \
-  Parameters: "/Create /F /RL highest /SC onlogon /TN ""Run win11-toggle-rounded-corners as admin on logon"" /TR ""'{app}\win11-toggle-rounded-corners.exe' --disable"""; \
+  Parameters: "/Create /F /RL highest /SC onlogon /TN ""Run win11-toggle-rounded-corners as admin on logon"" /TR ""'{app}\win11-toggle-rounded-corners.exe' {code:GetSelectedParameter}"""; \
   Description: "Automatically run on logon"; \
   Flags: runhidden runascurrentuser postinstall
 Filename: "{app}\win11-toggle-rounded-corners.exe"; \
   Description: "Run now"; \
-  Parameters: "--disable"; \
+  Parameters: "{code:GetSelectedParameter}"; \
   Flags: runhidden runascurrentuser nowait postinstall
 
 [UninstallRun]
