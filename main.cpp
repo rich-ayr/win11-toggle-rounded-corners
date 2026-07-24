@@ -201,8 +201,10 @@ template <typename T = std::uint8_t>
    if (!LookupPrivilegeValue(nullptr, name, &privilege.Privileges[0].Luid))
       return false;
 
+   constexpr auto kCurrentProcessBits = ~0uz;
    HANDLE token{};
-   if (!OpenProcessToken(reinterpret_cast<HANDLE>(-1), TOKEN_ADJUST_PRIVILEGES, &token))
+   if (!OpenProcessToken(reinterpret_cast<HANDLE>(kCurrentProcessBits), TOKEN_ADJUST_PRIVILEGES,
+                         &token))
       return false;
 
    if (!AdjustTokenPrivileges(token, FALSE, &privilege, sizeof(privilege), nullptr, nullptr)) {
