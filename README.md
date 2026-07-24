@@ -1,3 +1,6 @@
+[![build](https://github.com/rich-ayr/win11-toggle-rounded-corners/actions/workflows/build.yml/badge.svg)](https://github.com/rich-ayr/win11-toggle-rounded-corners/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/github/license/rich-ayr/win11-toggle-rounded-corners)](https://github.com/rich-ayr/win11-toggle-rounded-corners/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/v/release/rich-ayr/win11-toggle-rounded-corners?include_prereleases)](https://github.com/rich-ayr/win11-toggle-rounded-corners/releases)
 [![Github All Releases](https://img.shields.io/github/downloads/rich-ayr/win11-toggle-rounded-corners/total.svg)](https://github.com/rich-ayr/win11-toggle-rounded-corners/releases)
 
 # Win11 Toggle Rounded Corners
