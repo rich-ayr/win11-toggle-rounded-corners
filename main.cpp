@@ -249,7 +249,8 @@ int main(int argc, char **argv) try {
 
    verbose("Found dwm.exe process, pid: {}.", dwm_pid);
 
-   auto const dwm_process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwm_pid);
+   auto const dwm_process =
+         OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE, FALSE, dwm_pid);
    if (!dwm_process)
       error("Failed to open dwm.exe process: {}", last_error_message());
 
