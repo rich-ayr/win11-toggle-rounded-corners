@@ -224,15 +224,13 @@ template <typename T = std::uint8_t>
                                             | FORMAT_MESSAGE_IGNORE_INSERTS,
                                       nullptr, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                                       reinterpret_cast<LPSTR>(&buffer), 0, nullptr);
+   scope_exit const free_buffer{std::bind_front(LocalFree, buffer)};
 
    if (!length)
-      return std::format("unknown error ({:#x})", code);
+      return std::format("Unknown error ({:#x})", code);
 
-   std::string message{buffer, length};
-   LocalFree(buffer);
-   buffer = nullptr;
-
-   message.erase(message.find_last_not_of("\r\n") + 1);
+   std::string_view message{buffer, length};
+   message = message.substr(0, message.find_last_not_of("\r\n") + 1);
    return std::format("{} ({:#x})", message, code);
 }
 
@@ -249,7 +247,6 @@ template <typename T = std::uint8_t>
    if (!OpenProcessToken(reinterpret_cast<HANDLE>(kCurrentProcessBits), TOKEN_ADJUST_PRIVILEGES,
                          &token))
       return false;
-
    scope_exit const close_token{std::bind_front(CloseHandle, token)};
 
    return AdjustTokenPrivileges(token, FALSE, &privilege, sizeof(privilege), nullptr, nullptr) != 0;
@@ -294,7 +291,6 @@ int main(int argc, char **argv) try {
          OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE, FALSE, dwm_pid);
    if (!dwm_process)
       error("Failed to open dwm.exe process: {}", last_error_message());
-
    scope_exit const close_process{std::bind_front(CloseHandle, dwm_process)};
 
    verbose("Opened process handle {:#x} to dwm.exe.", reinterpret_cast<std::uint64_t>(dwm_process));
@@ -308,7 +304,6 @@ int main(int argc, char **argv) try {
    auto const udwm_dll = LoadLibraryExA("udwm.dll", nullptr, DONT_RESOLVE_DLL_REFERENCES);
    if (!udwm_dll)
       error("Failed to load udwm.dll locally: {}", last_error_message());
-
    scope_exit const unload_udwm{std::bind_front(FreeLibrary, udwm_dll)};
 
    auto const patch_targets =
