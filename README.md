@@ -20,7 +20,10 @@ Run as administrator. The patch is applied to `dwm.exe` in memory, so it does **
 ```
 win11-toggle-rounded-corners.exe --disable   # remove rounded corners
 win11-toggle-rounded-corners.exe --enable    # restore rounded corners
+win11-toggle-rounded-corners.exe --small     # use small rounded corners
 ```
+
+`--disable` takes precedence over both `--enable` and `--small`; `--small` takes precedence over `--enable`.
 
 The **installer** applies the patch and registers a logon scheduled task that re-applies it on each boot, so the change persists across restarts. The **portable** binary does a one-shot patch with no persistence.
 

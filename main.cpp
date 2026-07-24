@@ -208,14 +208,16 @@ int main(int argc, char **argv) try
   ProgramOptions const options{
       argc, argv,
       Option{"verbose"sv, "Enables verbose output."sv},
-      Option{"disable"sv, "Always disables rounded corners. Has precedence over --enable."sv},
-      Option{"enable"sv, "Always enables rounded corners."sv}
+      Option{"disable"sv, "Always disables rounded corners. Has precedence over --enable and --small."sv},
+      Option{"enable"sv, "Always enables rounded corners."sv},
+      Option{"small"sv, "Enables small rounded corners. Has precedence over --enable."sv}
   };
 
   set_verbose(options["verbose"sv].value);
 
   auto should_disable = options["disable"sv].value;
-  auto const should_override_toggle = should_disable || options["enable"sv].value;
+  auto const should_small = options["small"sv].value;
+  auto const should_override_toggle = should_disable || options["enable"sv].value || should_small;
 
   if (!enable_privilege(SE_DEBUG_NAME))
     error("Failed to enable '{}', make sure you are running as admin.", SE_DEBUG_NAME);
@@ -266,6 +268,7 @@ int main(int argc, char **argv) try
 
   for (auto const &[original, ptr] : patch_targets) {
     constexpr auto kNearZeroRadius = 0.001f;
+    constexpr auto kSmallRadius = 4.0f;
     float value{};
     SIZE_T out_size{};
 
@@ -276,7 +279,11 @@ int main(int argc, char **argv) try
     if (!should_override_toggle)
       should_disable = !is_disabled;
 
-    auto const new_border_radius = should_disable ? kNearZeroRadius : original;
+    auto const new_border_radius = [&] {
+      if (should_disable) return kNearZeroRadius;
+      if (should_small) return kSmallRadius;
+      return original;
+    }();
     verbose("Writing {} to border radius {:#x}\n", new_border_radius, reinterpret_cast<uint64_t>(ptr));
 
     DWORD old_protect{};
