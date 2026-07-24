@@ -52,9 +52,7 @@ template <typename... Args>
 template <std::size_t N>
 struct ProgramOptions {
    ProgramOptions(int argc, char **argv, auto &&...opts)
-      : argc{argc},
-        argv{argv},
-        command{argv[0]},
+      : command{argv[0]},
         program_name{command.substr(command.find_last_of("/\\") + 1)},
         options{std::array{ayr::detail::help_option, std::forward<decltype(opts)>(opts)...}} {
       constexpr auto trim_and_wrap = [](std::string_view str) constexpr noexcept {
@@ -107,8 +105,6 @@ struct ProgramOptions {
       std::println("");
    }
 
-   int argc;
-   char *const *argv;
    std::string_view command;
    std::string_view program_name;
    std::array<Option, N> options;
@@ -185,9 +181,9 @@ template <typename T = uint8_t>
 
    std::string message{buffer, length};
    LocalFree(buffer);
+   buffer = nullptr;
 
    message.erase(message.find_last_not_of("\r\n") + 1);
-
    return std::format("{} ({:#x})", message, code);
 }
 
@@ -235,7 +231,6 @@ int main(int argc, char **argv) try {
       error("Failed to enable '{}', make sure you are running as admin.", SE_DEBUG_NAME);
 
    DWORD dwm_pid{};
-
    for (auto const deadline = clock::now() + 5s; clock::now() < deadline;) {
       if (auto const dwm_hwnd = FindWindowA("Dwm", nullptr))
          if (GetWindowThreadProcessId(dwm_hwnd, &dwm_pid))
@@ -282,9 +277,9 @@ int main(int argc, char **argv) try {
    for (auto const &[original, ptr] : patch_targets) {
       constexpr auto kNearZeroRadius = 0.001f;
       constexpr auto kSmallRadius = 4.0f;
+
       float value{};
       SIZE_T out_size{};
-
       if (!ReadProcessMemory(dwm_process, ptr, &value, sizeof(float), &out_size)
           || out_size != sizeof(float))
          error("Failed to read rounding float from dwm.exe: {}", last_error_message());
@@ -300,6 +295,7 @@ int main(int argc, char **argv) try {
             return kSmallRadius;
          return original;
       }();
+
       verbose("Writing {} to border radius {:#x}\n", new_border_radius,
               reinterpret_cast<uint64_t>(ptr));
 
