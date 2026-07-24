@@ -103,6 +103,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/download-artifact@v8
         with:
@@ -113,13 +116,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          tag="${{ github.ref_name }}"
+          prev_tag="$(git tag --sort=-creatordate | grep -v "^${tag}$" | head -1)"
+
+          notes="$(git tag -l --format='%(contents:subject)' "$tag")"
+          body="$(git tag -l --format='%(contents:body)' "$tag")"
+          if [ -n "$body" ]; then
+            notes="${notes}"$'\n\n'"${body}"
+          fi
+          if [ -n "$prev_tag" ]; then
+            notes="${notes}"$'\n\n'"**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev_tag}...${tag}"
+          fi
+
           extra_args=()
-          if [[ "${{ github.ref_name }}" == *-* ]]; then
+          if [[ "$tag" == *-* ]]; then
             extra_args+=(--prerelease)
           fi
-          gh release create "${{ github.ref_name }}" \
+          gh release create "$tag" \
             artifacts/win11-toggle-rounded-corners-setup.exe \
             artifacts/win11-toggle-rounded-corners.exe \
-            --title "Release ${{ github.ref_name }}" \
-            --notes-from-tag \
+            --title "Release $tag" \
+            --notes "$notes" \
             "${extra_args[@]}"
