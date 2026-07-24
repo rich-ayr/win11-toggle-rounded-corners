@@ -47,7 +47,7 @@ inline void set_verbose(bool enabled) noexcept {
 template <typename... Args>
 inline void verbose(std::format_string<Args...> fmt, Args &&...args) {
    if (get_verbose())
-      std::print(fmt, std::forward<Args>(args)...);
+      std::println(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -80,8 +80,8 @@ struct ProgramOptions {
       constexpr auto kCopyrightYear{"2026"sv};
       constexpr auto kAuthor{"Rich Ayr <rich-ayr@img.ws>"sv};
 
-      std::print("{} {}\nCopyright (C) {} {}, {}\n\n", kProgramNameFriendly, kVersion,
-                 kCopyrightYear, kAuthor, kLicense);
+      std::println("{} {}\nCopyright (C) {} {}, {}\n", kProgramNameFriendly, kVersion,
+                   kCopyrightYear, kAuthor, kLicense);
 
       if (std::as_const(*this)["help"sv].value)
          print_help();
@@ -105,9 +105,9 @@ struct ProgramOptions {
    }
 
    void print_help() const {
-      std::print("{} [options]\nOptions:\n"sv, program_name);
+      std::println("{} [options]\nOptions:"sv, program_name);
       for (auto const &option : options)
-         std::print("  --{: <20}: {}\n"sv, option.name, option.desc);
+         std::println("  --{: <20}: {}"sv, option.name, option.desc);
       std::println("");
    }
 
@@ -245,22 +245,21 @@ int main(int argc, char **argv) try {
    }
 
    if (!dwm_pid)
-      error("Failed to find dwm process.\n");
+      error("Failed to find dwm process.");
 
-   verbose("Found dwm.exe process, pid: {}.\n", dwm_pid);
+   verbose("Found dwm.exe process, pid: {}.", dwm_pid);
 
    auto const dwm_process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwm_pid);
    if (!dwm_process)
       error("Failed to open dwm.exe process: {}", last_error_message());
 
-   verbose("Opened process handle {:#x} to dwm.exe.\n",
-           reinterpret_cast<std::uint64_t>(dwm_process));
+   verbose("Opened process handle {:#x} to dwm.exe.", reinterpret_cast<std::uint64_t>(dwm_process));
 
    auto const udwm_base = find_module_base(dwm_pid, "udwm.dll"sv);
    if (!udwm_base)
       error("Failed to find udwm.dll module inside dwm.exe process!");
 
-   verbose("Found udwm.dll mapped at {:#x}.\n", udwm_base.value());
+   verbose("Found udwm.dll mapped at {:#x}.", udwm_base.value());
 
    auto const udwm_dll = LoadLibraryExA("udwm.dll", nullptr, DONT_RESOLVE_DLL_REFERENCES);
    if (!udwm_dll)
@@ -303,7 +302,7 @@ int main(int argc, char **argv) try {
          return original;
       }();
 
-      verbose("Writing {} to border radius {:#x}\n", new_border_radius,
+      verbose("Writing {} to border radius {:#x}", new_border_radius,
               reinterpret_cast<std::uint64_t>(ptr));
 
       DWORD old_protect{};
@@ -320,12 +319,12 @@ int main(int argc, char **argv) try {
    }
 
    if (should_disable)
-      std::print("Your Windows 11 experience is now enhanced!\n");
+      std::println("Your Windows 11 experience is now enhanced!");
    else
-      std::print("Your Windows 11 experience is now dehanced!\n");
+      std::println("Your Windows 11 experience is now dehanced!");
 
    return 0;
 } catch (std::exception const &e) {
-   std::print(stderr, "{}\n", e.what());
+   std::println(stderr, "{}", e.what());
    return 1;
 }
