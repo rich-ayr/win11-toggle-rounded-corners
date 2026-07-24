@@ -36,3 +36,41 @@
 *.out
 *.app
 
+# Agent instruction & handoff files
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+AGENTS.override.md
+GEMINI.md
+HANDOFF.md
+PLAN.md
+TODO.ai.md
+.cursorrules
+copilot-instructions.md
+
+# Tool state / config directories
+.claude/
+.cursor/
+.aider*
+.windsurf/
+.cline/
+.gemini/
+.codeium/
+.continue/
+.copilot/
+.qoder/
+.zed/
+
+# Session logs, histories, scratch output
+*.chat.history.md
+.specstory/
+.history/ai/
+llm-output/
+.ai/
+ai-notes/
+
+# Per-tool ignore files (meta, but they're personal config too)
+.cursorignore
+.clineignore
+.claudeignore
+.aiexclude

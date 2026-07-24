@@ -1,4 +1,4 @@
-[![Github All Releases](https://img.shields.io/github/downloads/oberrich/win11-toggle-rounded-corners/total.svg)](https://github.com/oberrich/win11-toggle-rounded-corners/releases)
+[![Github All Releases](https://img.shields.io/github/downloads/rich-ayr/win11-toggle-rounded-corners/total.svg)](https://github.com/rich-ayr/win11-toggle-rounded-corners/releases)
 
 # Win11 Toggle Rounded Corners
 
@@ -8,7 +8,7 @@ A simple utility to disable rounded window corners on Windows 11
 
 ## Download
 
-An installer as well as the standalone binary for portable use can be [**downloaded here**](https://github.com/oberrich/win11-toggle-rounded-corners/releases).
+An installer as well as the standalone binary for portable use can be [**downloaded here**](https://github.com/rich-ayr/win11-toggle-rounded-corners/releases).
 The program requires **administrator** privileges.
 
 Some Anti-Virus products may block the access to `dwm.exe`
@@ -45,7 +45,7 @@ schtasks /Delete /F /TN "Run win11-toggle-rounded-corners as admin on logon"
 First clone the repo
 
 ```
-git clone 'https://github.com/oberrich/win11-toggle-rounded-corners.git'
+git clone 'https://github.com/rich-ayr/win11-toggle-rounded-corners.git'
 ```
 
 Then simply build it with meson

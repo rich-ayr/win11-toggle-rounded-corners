@@ -2,9 +2,9 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Win11 Toggle Rounded Corners"
-#define MyAppVersion "1.2"
-#define MyAppPublisher "oberrich"
-#define MyAppURL "https://github.com/oberrich/win11-toggle-rounded-corners"
+#define MyAppVersion "1.3"
+#define MyAppPublisher "Rich Ayr"
+#define MyAppURL "https://github.com/rich-ayr/win11-toggle-rounded-corners"
 
 [Setup]
 AppId={{5B8824C9-B4BE-4B1C-AA9F-BA8362C44B96}
@@ -15,7 +15,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-AppCopyright=Copyright (C) 2023 oberrich, MIT License
+AppCopyright=Copyright (C) 2026 Rich Ayr <rich-ayr@img.ws>, MIT License
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes

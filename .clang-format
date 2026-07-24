@@ -1,12 +1,48 @@
 ---
 Language: Cpp
-BasedOnStyle: Google
-Standard: Latest
+BasedOnStyle: LLVM
+ColumnLimit: 100
+
+# --- indent cluster ---
+IndentWidth: 3
+ContinuationIndentWidth: 6
+ConstructorInitializerIndentWidth: 3
+AccessModifierOffset: -3
+TabWidth: 3
 UseTab: Never
-TabWidth: 2
-ColumnLimit: 140
+
+# --- opinions ---
+# East const, east star: `char const* p` written `char const *p` — qualifier to
+# the right of the type, star bound to the declarator. ReferenceAlignment
+# defaults to Pointer, so `&` follows the star.
+PointerAlignment: Right
+QualifierAlignment: Right
 DerivePointerAlignment: false
-PointerAlignment: Right # auto &ref, auto *ptr
-QualifierAlignment: Right # auto const
-PackConstructorInitializers: Never
-...
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Attach
+PackConstructorInitializers: Never # each ctor init list on its own line (colon-leading)
+BreakBeforeBinaryOperators: NonAssignment
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignAfterOpenBracket: Align
+IndentCaseLabels: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+InsertNewlineAtEOF: true
+
+# --- includes: auto-sort + regroup ---
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"'                  # project headers
+    Priority: 1
+  - Regex: '^<[^>]+/'            # external libs with paths: <fmt/format.h>, <absl/...>, <sys/socket.h>
+    Priority: 2
+  - Regex: '^<[A-Za-z0-9_]+\.h>' # bare platform/system headers: <windows.h>, <tlhelp32.h> (higher-level, OS-bound)
+    Priority: 4
+  - Regex: '^<'                  # bare C/C++ stdlib: <vector>, <cstdint> (lowest-level, fewest deps)
+    Priority: 3
+IncludeIsMainRegex: '([-_](test|unittest|bench))?$'
