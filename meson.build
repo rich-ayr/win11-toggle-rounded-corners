@@ -12,9 +12,7 @@ project('win11-toggle-rounded-corners', 'cpp',
   ])
 
 cpp_compiler_id = meson.get_compiler('cpp').get_id()
-if cpp_compiler_id in ['msvc', 'clang-cl']
-  add_global_arguments(['/wd5072', '/wd4820', '/wd4455', '/wd4668', '/wd5039'], language: 'cpp')
-else
+if cpp_compiler_id not in ['msvc', 'clang-cl']
   warning('Unsupported compiler')
 endif
 
