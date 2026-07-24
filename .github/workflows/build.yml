@@ -121,5 +121,4 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Release ${{ github.ref_name }}" \
             --notes-from-tag \
-            --generate-notes \
             "${extra_args[@]}"
