@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <exception>
 #include <format>
+#include <functional> // IWYU pragma: keep (std::bind_front)
 #include <optional>
 #include <print>
 #include <ranges>
@@ -204,20 +205,16 @@ template <typename T = std::uint8_t>
    auto const snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
    if (snapshot == INVALID_HANDLE_VALUE)
       return {};
+   scope_exit const close_snapshot{std::bind_front(CloseHandle, snapshot)};
 
    MODULEENTRY32 entry{};
    entry.dwSize = sizeof(entry);
-
    if (Module32First(snapshot, &entry)) {
       do {
-         if (module_name == entry.szModule) {
-            CloseHandle(snapshot);
+         if (module_name == entry.szModule)
             return reinterpret_cast<std::uint64_t>(entry.modBaseAddr);
-         }
       } while (Module32Next(snapshot, &entry));
    }
-
-   CloseHandle(snapshot);
    return {};
 }
 
@@ -253,13 +250,9 @@ template <typename T = std::uint8_t>
                          &token))
       return false;
 
-   if (!AdjustTokenPrivileges(token, FALSE, &privilege, sizeof(privilege), nullptr, nullptr)) {
-      CloseHandle(token);
-      return false;
-   }
+   scope_exit const close_token{std::bind_front(CloseHandle, token)};
 
-   CloseHandle(token);
-   return true;
+   return AdjustTokenPrivileges(token, FALSE, &privilege, sizeof(privilege), nullptr, nullptr) != 0;
 }
 
 int main(int argc, char **argv) try {
@@ -302,6 +295,8 @@ int main(int argc, char **argv) try {
    if (!dwm_process)
       error("Failed to open dwm.exe process: {}", last_error_message());
 
+   scope_exit const close_process{std::bind_front(CloseHandle, dwm_process)};
+
    verbose("Opened process handle {:#x} to dwm.exe.", reinterpret_cast<std::uint64_t>(dwm_process));
 
    auto const udwm_base = find_module_base(dwm_pid, "udwm.dll"sv);
@@ -313,6 +308,8 @@ int main(int argc, char **argv) try {
    auto const udwm_dll = LoadLibraryExA("udwm.dll", nullptr, DONT_RESOLVE_DLL_REFERENCES);
    if (!udwm_dll)
       error("Failed to load udwm.dll locally: {}", last_error_message());
+
+   scope_exit const unload_udwm{std::bind_front(FreeLibrary, udwm_dll)};
 
    auto const patch_targets =
          get_section<float>(udwm_dll, ".rdata")
