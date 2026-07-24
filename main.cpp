@@ -15,8 +15,16 @@
 #include <string_view>
 #include <thread>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
+
+#if __has_include(<scope>)
+#include <scope>
+#endif
+#if __has_include(<experimental/scope>)
+#include <experimental/scope>
+#endif
 
 // clang-format off
 #include <windows.h>
@@ -118,6 +126,44 @@ struct ProgramOptions {
 
 template <typename... Options>
 ProgramOptions(int, char **, Options...) -> ProgramOptions<sizeof...(Options) + 1>;
+
+// See P3610 (standardization of P0052)
+#if defined(__cpp_lib_scope)
+using std::scope_exit;
+#elif defined(__cpp_lib_experimental_scope)
+using std::experimental::scope_exit;
+#else
+template <typename ExitFunction>
+class scope_exit {
+public:
+   template <typename Fn>
+      requires(!std::is_same_v<std::remove_cvref_t<Fn>, scope_exit>)
+   explicit scope_exit(Fn &&fn) noexcept
+      : exit_function_{std::forward<Fn>(fn)} {}
+
+   scope_exit(scope_exit &&other) noexcept
+      : exit_function_{std::move(other.exit_function_)},
+        active_{std::exchange(other.active_, false)} {}
+
+   scope_exit(scope_exit const &) = delete;
+   scope_exit &operator=(scope_exit const &) = delete;
+   scope_exit &operator=(scope_exit &&) = delete;
+
+   ~scope_exit() {
+      if (active_)
+         exit_function_();
+   }
+
+   void release() noexcept { active_ = false; }
+
+private:
+   ExitFunction exit_function_;
+   bool active_{true};
+};
+
+template <typename ExitFunction>
+scope_exit(ExitFunction) -> scope_exit<ExitFunction>;
+#endif
 
 [[nodiscard]] IMAGE_NT_HEADERS64 const *image_nt_headers(void const *base) noexcept {
    if (!base)
