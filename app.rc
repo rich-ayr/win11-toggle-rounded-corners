@@ -1,0 +1,3 @@
+// 1 = CREATEPROCESS_MANIFEST_RESOURCE_ID, 24 = RT_MANIFEST.
+// Spelled numerically so llvm-rc needs no Windows SDK include path.
+1 24 "app.manifest"
