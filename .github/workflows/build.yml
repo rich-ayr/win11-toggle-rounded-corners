@@ -129,7 +129,9 @@ jobs:
             extra_args+=(--prerelease)
           fi
           gh release create "${{ github.ref_name }}" \
-            artifacts/win11-toggle-rounded-corners-*.exe \
+            artifacts/win11-toggle-rounded-corners-setup.exe \
+            artifacts/win11-toggle-rounded-corners-x64.exe \
+            artifacts/win11-toggle-rounded-corners-arm64.exe \
             --repo "${{ github.repository }}" \
             --title "Release ${{ github.ref_name }}" \
             --notes-from-tag \
