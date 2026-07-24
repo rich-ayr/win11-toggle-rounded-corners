@@ -1,0 +1,137 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    env:
+      CXX: clang-cl
+      BINARY_NAME: win11-toggle-rounded-corners-${{ matrix.arch }}.exe
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Install meson & ninja
+        run: pip install meson ninja
+
+      - name: Record toolchain versions
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsInfo = if (Test-Path $vswhere) { & $vswhere -latest -products '*' -format text | Out-String } else { '(vswhere not found)' }
+
+          "## Toolchain (${{ matrix.arch }})" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- runner: ${{ matrix.runner }}" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- commit: ${{ github.sha }}" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- build date (UTC): $([DateTime]::UtcNow.ToString('o'))" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+          '```text' | Add-Content $env:GITHUB_STEP_SUMMARY
+          (clang-cl --version 2>&1 | Out-String).Trim() | Add-Content $env:GITHUB_STEP_SUMMARY
+          "meson $(meson --version)" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "ninja $(ninja --version)" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+          $vsInfo.Trim() | Add-Content $env:GITHUB_STEP_SUMMARY
+          '```' | Add-Content $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Build
+        run: |
+          meson setup build
+          meson compile -C build
+
+      - name: Verify reproducibility
+        shell: pwsh
+        run: |
+          $h1 = (Get-FileHash build\win11-toggle-rounded-corners.exe -Algorithm SHA256).Hash
+          meson compile -C build --clean
+          meson compile -C build
+          $h2 = (Get-FileHash build\win11-toggle-rounded-corners.exe -Algorithm SHA256).Hash
+
+          "- pass 1 SHA256: $h1" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- pass 2 SHA256: $h2" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+
+          if ($h1 -ne $h2) {
+            Write-Error "Build is NOT reproducible for ${{ matrix.arch }}: $h1 != $h2"
+            exit 1
+          }
+          Write-Host "Reproducible build verified for ${{ matrix.arch }}: $h1"
+
+      - name: Collect binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item build\win11-toggle-rounded-corners.exe artifacts\$env:BINARY_NAME
+
+      - name: Install Inno Setup
+        if: matrix.arch == 'x64'
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        if: matrix.arch == 'x64'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss'
+
+      - name: Collect installer
+        if: matrix.arch == 'x64'
+        run: Copy-Item build\win11-toggle-rounded-corners-setup.exe artifacts\
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: artifacts/*.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: win11-toggle-rounded-corners-${{ matrix.arch }}
+          path: artifacts/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          extra_args=()
+          if [[ "${{ github.ref_name }}" == *-* ]]; then
+            extra_args+=(--prerelease)
+          fi
+          gh release create "${{ github.ref_name }}" \
+            artifacts/win11-toggle-rounded-corners-*.exe \
+            artifacts/win11-toggle-rounded-corners-setup.exe \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            "${extra_args[@]}"
