@@ -130,7 +130,6 @@ jobs:
           fi
           gh release create "${{ github.ref_name }}" \
             artifacts/win11-toggle-rounded-corners-*.exe \
-            artifacts/win11-toggle-rounded-corners-setup.exe \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
             --generate-notes \
