@@ -9,6 +9,26 @@ on:
   workflow_dispatch:
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Install clang-format
+        run: pip install clang-format==22.1.8
+
+      - name: Check formatting
+        run: |
+          files=$(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.hh' '*.cxx')
+          echo "Checking: $files"
+          clang-format --dry-run --Werror $files
+
   build:
     runs-on: windows-2025
     permissions:
