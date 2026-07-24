@@ -4,7 +4,7 @@
 
 A simple utility to disable rounded window corners on Windows 11
 
-[![](https://i.imgur.com/5HIQf7n.png)](https://i.imgur.com/5HIQf7n.png)
+[![](https://i.imgur.com/wqi0bh3.png)](https://i.imgur.com/wqi0bh3.png)
 
 ## Download
 
