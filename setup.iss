@@ -5,6 +5,7 @@
 #define MyAppVersion "1.3"
 #define MyAppPublisher "Rich Ayr"
 #define MyAppURL "https://github.com/rich-ayr/win11-toggle-rounded-corners"
+#define LogonTaskName "Run win11-toggle-rounded-corners as admin on logon"
 
 [Setup]
 AppId={{5B8824C9-B4BE-4B1C-AA9F-BA8362C44B96}
@@ -43,12 +44,14 @@ OptionsPageCaption=Rounded Corners Options
 OptionsPageDescription=Choose how you want rounded corners to be handled
 DisableOption=Disable rounded corners completely
 SmallOption=Enable small rounded corners
+LogonTaskDescription=Automatically run on logon
 
 [Code]
 var
   OptionsPage: TWizardPage;
   DisableRadio: TRadioButton;
   SmallRadio: TRadioButton;
+  LogonCheck: TCheckBox;
 
 procedure InitializeWizard;
 begin
@@ -72,6 +75,14 @@ begin
   SmallRadio.Left := 0;
   SmallRadio.Top := 40;
   SmallRadio.Width := OptionsPage.SurfaceWidth;
+
+  LogonCheck := TCheckBox.Create(OptionsPage);
+  LogonCheck.Parent := OptionsPage.Surface;
+  LogonCheck.Caption := ExpandConstant('{cm:LogonTaskDescription}');
+  LogonCheck.Left := 0;
+  LogonCheck.Top := 72;
+  LogonCheck.Width := OptionsPage.SurfaceWidth;
+  LogonCheck.Checked := True; // Default selection
 end;
 
 function GetSelectedParameter(Param: String): String;
@@ -84,17 +95,78 @@ begin
     Result := '--disable'; // fallback
 end;
 
+function RunSchTasks(const Params: String; var ResultCode: Integer): Boolean;
+begin
+  Result := Exec(ExpandConstant('{sys}\schtasks.exe'), Params, '', SW_HIDE,
+    ewWaitUntilTerminated, ResultCode);
+end;
+
+// Started=False means schtasks never launched; ResultCode is a Win32 error then.
+procedure ReportSchTasksFailure(const Started: Boolean; const ResultCode: Integer;
+  const Summary, Consequence: String; const Silent: Boolean);
+var
+  Detail: String;
+begin
+  if Started and (ResultCode = 0) then
+    Exit;
+
+  if Started then
+    Detail := 'schtasks.exe exited with code ' + IntToStr(ResultCode) + '.'
+  else
+    Detail := 'schtasks.exe could not be started: ' + SysErrorMessage(ResultCode);
+
+  Log(Summary + ' ' + Detail);
+  if not Silent then
+    MsgBox(Summary + #13#10#13#10 + Detail + #13#10#13#10 + Consequence, mbError, MB_OK);
+end;
+
+procedure CreateLogonTask;
+var
+  Params: String;
+  ResultCode: Integer;
+  Started: Boolean;
+begin
+  // /TR is one command line; single-quote the path so the args stay separable.
+  Params := '/Create /F /RL highest /SC onlogon' +
+    ' /TN ' + #34 + '{#LogonTaskName}' + #34 +
+    ' /TR ' + #34 + #39 + ExpandConstant('{app}\win11-toggle-rounded-corners.exe') + #39 +
+    ' ' + GetSelectedParameter('') + #34;
+
+  Started := RunSchTasks(Params, ResultCode);
+  ReportSchTasksFailure(Started, ResultCode, 'The logon task could not be created.',
+    'The tool is installed and works; it just will not start automatically at logon.',
+    WizardSilent);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and LogonCheck.Checked then
+    CreateLogonTask;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+  Started: Boolean;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+
+  // A missing task is not an error
+  Started := RunSchTasks('/Query /TN ' + #34 + '{#LogonTaskName}' + #34, ResultCode);
+  if not Started or (ResultCode <> 0) then
+    Exit;
+
+  Started := RunSchTasks('/Delete /F /TN ' + #34 + '{#LogonTaskName}' + #34, ResultCode);
+  ReportSchTasksFailure(Started, ResultCode, 'The logon task could not be removed.',
+    'Remove it manually in Task Scheduler, otherwise it will keep firing at logon and ' +
+    'point at a program that no longer exists:' + #13#10 + '{#LogonTaskName}',
+    UninstallSilent);
+end;
+
 [Run]
-Filename: "schtasks"; \
-  Parameters: "/Create /F /RL highest /SC onlogon /TN ""Run win11-toggle-rounded-corners as admin on logon"" /TR ""'{app}\win11-toggle-rounded-corners.exe' {code:GetSelectedParameter}"""; \
-  Description: "Automatically run on logon"; \
-  Flags: runhidden runascurrentuser postinstall
+; The logon task is created in [Code] so its failures are reported
 Filename: "{app}\win11-toggle-rounded-corners.exe"; \
   Description: "Run now"; \
   Parameters: "{code:GetSelectedParameter}"; \
   Flags: runhidden runascurrentuser nowait postinstall
-
-[UninstallRun]
-Filename: "schtasks"; \
-  Parameters: "/Delete /F /TN ""Run win11-toggle-rounded-corners as admin on logon"""; \
-  Flags: runhidden runascurrentuser
