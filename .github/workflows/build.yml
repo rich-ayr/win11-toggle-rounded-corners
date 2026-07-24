@@ -102,6 +102,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
@@ -118,7 +120,6 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             artifacts/win11-toggle-rounded-corners-setup.exe \
             artifacts/win11-toggle-rounded-corners.exe \
-            --repo "${{ github.repository }}" \
             --title "Release ${{ github.ref_name }}" \
             --notes-from-tag \
             "${extra_args[@]}"
