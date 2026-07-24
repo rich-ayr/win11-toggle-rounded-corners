@@ -91,26 +91,32 @@ jobs:
           Write-Host "Reproducible build verified: $h1"
 
       - name: Collect binary
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           Copy-Item build\win11-toggle-rounded-corners.exe artifacts\
 
       - name: Install Inno Setup
+        if: startsWith(github.ref, 'refs/tags/v')
         run: choco install innosetup -y --no-progress
 
       - name: Build installer
+        if: startsWith(github.ref, 'refs/tags/v')
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss'
 
       - name: Collect installer
+        if: startsWith(github.ref, 'refs/tags/v')
         run: Copy-Item build\win11-toggle-rounded-corners-setup.exe artifacts\
 
       - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: artifacts/*.exe
 
       - uses: actions/upload-artifact@v7
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: win11-toggle-rounded-corners
           path: artifacts/
