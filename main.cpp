@@ -1,14 +1,20 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
+#include <exception>
 #include <format>
 #include <optional>
 #include <print>
 #include <ranges>
+#include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -129,7 +135,7 @@ ProgramOptions(int, char **, Options...) -> ProgramOptions<sizeof...(Options) + 
    return nt_headers;
 }
 
-template <typename T = uint8_t>
+template <typename T = std::uint8_t>
 [[nodiscard]] std::span<T const> get_section(void const *base, std::string_view name) noexcept {
    auto const nt_hdrs = image_nt_headers(base);
    if (!nt_hdrs)
@@ -139,7 +145,7 @@ template <typename T = uint8_t>
         sec_header < IMAGE_FIRST_SECTION(nt_hdrs) + nt_hdrs->FileHeader.NumberOfSections;
         sec_header++) {
       if (name == reinterpret_cast<char const *>(sec_header->Name)) {
-         return {reinterpret_cast<T const *>(static_cast<uint8_t const *>(base)
+         return {reinterpret_cast<T const *>(static_cast<std::uint8_t const *>(base)
                                              + sec_header->VirtualAddress),
                  sec_header->Misc.VirtualSize / sizeof(T)};
       }
@@ -147,8 +153,8 @@ template <typename T = uint8_t>
    return {};
 }
 
-[[nodiscard]] std::optional<uint64_t> find_module_base(DWORD pid,
-                                                       std::string_view module_name) noexcept {
+[[nodiscard]] std::optional<std::uint64_t> find_module_base(DWORD pid,
+                                                            std::string_view module_name) noexcept {
    auto const snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
    if (snapshot == INVALID_HANDLE_VALUE)
       return {};
@@ -160,7 +166,7 @@ template <typename T = uint8_t>
       do {
          if (module_name == entry.szModule) {
             CloseHandle(snapshot);
-            return reinterpret_cast<uint64_t>(entry.modBaseAddr);
+            return reinterpret_cast<std::uint64_t>(entry.modBaseAddr);
          }
       } while (Module32Next(snapshot, &entry));
    }
@@ -247,7 +253,8 @@ int main(int argc, char **argv) try {
    if (!dwm_process)
       error("Failed to open dwm.exe process: {}", last_error_message());
 
-   verbose("Opened process handle {:#x} to dwm.exe.\n", reinterpret_cast<uint64_t>(dwm_process));
+   verbose("Opened process handle {:#x} to dwm.exe.\n",
+           reinterpret_cast<std::uint64_t>(dwm_process));
 
    auto const udwm_base = find_module_base(dwm_pid, std::string_view{"udwm.dll"});
    if (!udwm_base)
@@ -263,8 +270,8 @@ int main(int argc, char **argv) try {
          get_section<float>(udwm_dll, ".rdata")
          | std::views::filter([](auto const &flt) { return flt == 4.f || flt == 8.f; })
          | std::views::transform([=](float const &flt) {
-              auto rva = reinterpret_cast<uint8_t const *>(&flt)
-                         - reinterpret_cast<uint8_t const *>(udwm_dll);
+              auto rva = reinterpret_cast<std::uint8_t const *>(&flt)
+                         - reinterpret_cast<std::uint8_t const *>(udwm_dll);
               auto rebased = reinterpret_cast<float *>(udwm_base.value() + rva);
               return std::make_tuple(flt, rebased);
            })
@@ -297,7 +304,7 @@ int main(int argc, char **argv) try {
       }();
 
       verbose("Writing {} to border radius {:#x}\n", new_border_radius,
-              reinterpret_cast<uint64_t>(ptr));
+              reinterpret_cast<std::uint64_t>(ptr));
 
       DWORD old_protect{};
       if (!VirtualProtectEx(dwm_process, ptr, sizeof(float), PAGE_READWRITE, &old_protect))
