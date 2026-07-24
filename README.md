@@ -39,10 +39,10 @@ schtasks /Delete /F /TN "Run win11-toggle-rounded-corners as admin on logon"
 
 ## Build
 
-First clone the repo **recursive**ly
+First clone the repo
 
 ```
-git clone --recursive 'https://github.com/oberrich/win11-toggle-rounded-corners.git'
+git clone 'https://github.com/oberrich/win11-toggle-rounded-corners.git'
 ```
 
 Then simply build it with meson
