@@ -32,7 +32,7 @@ struct Option {
 };
 
 namespace ayr::detail {
-static constexpr Option help_option{"help"sv, "Shows all available options."sv};
+static constexpr Option kHelpOption{"help"sv, "Shows all available options."sv};
 static bool verbose_enabled{};
 } // namespace ayr::detail
 
@@ -60,7 +60,7 @@ struct ProgramOptions {
    ProgramOptions(int argc, char **argv, auto &&...opts)
       : command{argv[0]},
         program_name{command.substr(command.find_last_of("/\\") + 1)},
-        options{std::array{ayr::detail::help_option, std::forward<decltype(opts)>(opts)...}} {
+        options{ayr::detail::kHelpOption, std::forward<decltype(opts)>(opts)...} {
       constexpr auto trim_and_wrap = [](std::string_view str) constexpr noexcept {
          constexpr auto is_dash = [](auto const c) constexpr noexcept { return c == '-'; };
          return static_cast<std::string_view>(str | std::views::drop_while(is_dash));
@@ -74,14 +74,14 @@ struct ProgramOptions {
          }
       }
 
-      constexpr std::string_view program_name_friendly{"Win11 Toggle Rounded Corners"sv};
-      constexpr std::string_view version{"v1.3"sv};
-      constexpr std::string_view license{"MIT License"};
-      constexpr std::string_view copyright_year{"2026"sv};
-      constexpr std::string_view author{"Rich Ayr <rich-ayr@img.ws>"sv};
+      constexpr auto kProgramNameFriendly{"Win11 Toggle Rounded Corners"sv};
+      constexpr auto kVersion{"v1.3"sv};
+      constexpr auto kLicense{"MIT License"sv};
+      constexpr auto kCopyrightYear{"2026"sv};
+      constexpr auto kAuthor{"Rich Ayr <rich-ayr@img.ws>"sv};
 
-      std::print("{} {}\nCopyright (C) {} {}, {}\n\n", program_name_friendly, version,
-                 copyright_year, author, license);
+      std::print("{} {}\nCopyright (C) {} {}, {}\n\n", kProgramNameFriendly, kVersion,
+                 kCopyrightYear, kAuthor, kLicense);
 
       if (std::as_const(*this)["help"sv].value)
          print_help();
@@ -159,8 +159,8 @@ template <typename T = std::uint8_t>
    if (snapshot == INVALID_HANDLE_VALUE)
       return {};
 
-   auto entry = MODULEENTRY32{};
-   entry.dwSize = sizeof(MODULEENTRY32);
+   MODULEENTRY32 entry{};
+   entry.dwSize = sizeof(entry);
 
    if (Module32First(snapshot, &entry)) {
       do {
@@ -256,7 +256,7 @@ int main(int argc, char **argv) try {
    verbose("Opened process handle {:#x} to dwm.exe.\n",
            reinterpret_cast<std::uint64_t>(dwm_process));
 
-   auto const udwm_base = find_module_base(dwm_pid, std::string_view{"udwm.dll"});
+   auto const udwm_base = find_module_base(dwm_pid, "udwm.dll"sv);
    if (!udwm_base)
       error("Failed to find udwm.dll module inside dwm.exe process!");
 
