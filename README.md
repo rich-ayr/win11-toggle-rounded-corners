@@ -12,29 +12,29 @@ A simple utility to disable rounded window corners on Windows 11
 ## Download
 
 An installer as well as the standalone binary for portable use can be [**downloaded here**](https://github.com/rich-ayr/win11-toggle-rounded-corners/releases).
-The program requires **administrator** privileges.
 
-Some Anti-Virus products may block the access to `dwm.exe`
+Windows 11 on x64 only. Some Anti-Virus/EDR products may block access to `dwm.exe`.
 
 ## Usage
 
-Run as administrator. The patch is applied to `dwm.exe` in memory, so it does **not** survive a restart of `dwm.exe` (logoff, reboot, or a `dwm.exe` crash) on its own.
+The program requires **administrator** privileges and asks for them itself, so you get the usual UAC prompt when you start it. There is no need to open an elevated terminal first.
 
 ```
-win11-toggle-rounded-corners.exe --disable   # remove rounded corners
-win11-toggle-rounded-corners.exe --enable    # restore rounded corners
-win11-toggle-rounded-corners.exe --small     # use small rounded corners
+win11-toggle-rounded-corners --disable   # square corners
+win11-toggle-rounded-corners --small     # small rounding
 ```
 
-`--disable` takes precedence over both `--enable` and `--small`; `--small` takes precedence over `--enable`.
+Run it with no arguments to toggle.
 
-The **installer** applies the patch and registers a logon scheduled task that re-applies it on each boot, so the change persists across restarts. The **portable** binary does a one-shot patch with no persistence.
+The patch is applied to `dwm.exe` in memory and is lost whenever `dwm.exe` restarts (logoff, reboot, or a crash).
+
+The **installer** re-applies it with a logon task, so it persists; the **portable** binary is one shot.
 
 ## Reverting
 
 How to undo the patch depends on how you installed it:
 
-- **Portable:** Run the binary again with `--enable`, or just reboot — the patch doesn't survive a `dwm.exe` restart.
+- **Portable:** Run the binary again with `--enable`, or just reboot.
 - **Installer:** Uninstall it from **Settings → Apps**. This removes the scheduled task that re-applies the patch at every logon. Your current session will still show square corners until you reboot; after the reboot nothing re-applies the patch and rounded corners return on their own.
 
 If a leftover task is still squaring corners after uninstalling, you can remove it manually from an elevated Command Prompt:
@@ -44,6 +44,8 @@ schtasks /Delete /F /TN "Run win11-toggle-rounded-corners as admin on logon"
 ```
 
 ## Build
+
+You need clang-cl or MSVC with C++23/26 support, plus [meson](https://mesonbuild.com) and [ninja](https://ninja-build.org).
 
 First clone the repo
 
