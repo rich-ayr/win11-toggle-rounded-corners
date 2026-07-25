@@ -143,7 +143,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ github.ref_name }}"
-          prev_tag="$(git tag --sort=-creatordate | grep -v "^${tag}$" | head -1)"
+          # Skip pre-release tags so the compare link spans stable releases
+          prev_tag="$(git tag --sort=-creatordate | grep -v "^${tag}$" | grep -E '^v[0-9]+(\.[0-9]+)*$' | head -1)"
 
           notes="$(git tag -l --format='%(contents:subject)' "$tag")"
           body="$(git tag -l --format='%(contents:body)' "$tag")"
