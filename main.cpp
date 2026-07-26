@@ -84,7 +84,7 @@ struct ProgramOptions {
       }
 
       constexpr auto kProgramNameFriendly{"Win11 Toggle Rounded Corners"sv};
-      constexpr auto kVersion{"v1.3"sv};
+      constexpr auto kVersion{"v1.4"sv};
       constexpr auto kLicense{"MIT License"sv};
       constexpr auto kCopyrightYear{"2026"sv};
       constexpr auto kAuthor{"Rich Ayr <rich-ayr@img.ws>"sv};
