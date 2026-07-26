@@ -198,8 +198,7 @@ begin
       '<UserId>' + Account + '</UserId></LogonTrigger>';
   end;
 
-  // Element order matters; the schema validates as a sequence. UTF-16 is not a
-  // typo: schtasks decodes the file before parsing, so UTF-8 here is rejected.
+  // Element order matters; the schema validates as a sequence.
   Result :=
     '<?xml version="1.0" encoding="UTF-16"?>' +
     '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">' +
@@ -226,19 +225,37 @@ begin
     '</Task>';
 end;
 
+// UTF-16LE, matching the encoding LogonTaskXml declares; some schtasks builds
+// parse the file bytes directly and reject a mismatch (#30).
+function SaveUtf16File(const FileName, S: String): Boolean;
+var
+  Stream: TFileStream;
+  Data: String;
+begin
+  Result := False;
+  Data := #$FEFF + S;
+  try
+    Stream := TFileStream.Create(FileName, fmCreate);
+    try
+      Stream.WriteBuffer(Data, Length(Data) * 2);
+      Result := True;
+    finally
+      Stream.Free;
+    end;
+  except
+    Log('Writing ' + FileName + ' failed: ' + GetExceptionMessage);
+  end;
+end;
+
 procedure CreateLogonTask;
 var
   XmlPath: String;
-  Lines: TArrayOfString;
   ResultCode: Integer;
   Started: Boolean;
 begin
   XmlPath := ExpandConstant('{tmp}\logon-task.xml');
 
-  SetArrayLength(Lines, 1);
-  Lines[0] := LogonTaskXml;
-  // schtasks reads the encoding from the BOM this writes.
-  if not SaveStringsToUTF8File(XmlPath, Lines, False) then
+  if not SaveUtf16File(XmlPath, LogonTaskXml) then
   begin
     Log('The logon task could not be created. Setup could not write ' + XmlPath + '.');
     if not WizardSilent then
