@@ -8,6 +8,7 @@
 #define LogonTaskName "Run win11-toggle-rounded-corners as admin on logon"
 
 [Setup]
+; [sic] double brace is the escape for a literal '{'
 AppId={{5B8824C9-B4BE-4B1C-AA9F-BA8362C44B96}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -45,6 +46,8 @@ OptionsPageDescription=Choose how you want rounded corners to be handled
 DisableOption=Disable rounded corners completely
 SmallOption=Enable small rounded corners
 LogonTaskDescription=Automatically run on logon
+AllUsersScopeOption=For all administrators on this PC
+CurrentUserScopeOption=For me only
 
 [Code]
 var
@@ -52,6 +55,15 @@ var
   DisableRadio: TRadioButton;
   SmallRadio: TRadioButton;
   LogonCheck: TCheckBox;
+  // Own container; TRadioButton groups by parent, not by proximity.
+  ScopePanel: TPanel;
+  AllUsersRadio: TRadioButton;
+  CurrentUserRadio: TRadioButton;
+
+procedure LogonCheckClick(Sender: TObject);
+begin
+  ScopePanel.Enabled := LogonCheck.Checked;
+end;
 
 procedure InitializeWizard;
 begin
@@ -83,6 +95,33 @@ begin
   LogonCheck.Top := 72;
   LogonCheck.Width := OptionsPage.SurfaceWidth;
   LogonCheck.Checked := True; // Default selection
+
+  ScopePanel := TPanel.Create(OptionsPage);
+  ScopePanel.Parent := OptionsPage.Surface;
+  ScopePanel.Left := 20;
+  ScopePanel.Top := 94;
+  ScopePanel.Width := OptionsPage.SurfaceWidth - 20;
+  ScopePanel.Height := 46;
+  ScopePanel.BevelOuter := bvNone;
+  ScopePanel.ParentBackground := True;
+  ScopePanel.Caption := '';
+
+  AllUsersRadio := TRadioButton.Create(OptionsPage);
+  AllUsersRadio.Parent := ScopePanel;
+  AllUsersRadio.Caption := ExpandConstant('{cm:AllUsersScopeOption}');
+  AllUsersRadio.Left := 0;
+  AllUsersRadio.Top := 0;
+  AllUsersRadio.Width := ScopePanel.Width;
+  AllUsersRadio.Checked := True; // Default selection
+
+  CurrentUserRadio := TRadioButton.Create(OptionsPage);
+  CurrentUserRadio.Parent := ScopePanel;
+  CurrentUserRadio.Caption := ExpandConstant('{cm:CurrentUserScopeOption}');
+  CurrentUserRadio.Left := 0;
+  CurrentUserRadio.Top := 22;
+  CurrentUserRadio.Width := ScopePanel.Width;
+
+  LogonCheck.OnClick := @LogonCheckClick;
 end;
 
 function GetSelectedParameter(Param: String): String;
@@ -120,22 +159,102 @@ begin
     MsgBox(Summary + #13#10#13#10 + Detail + #13#10#13#10 + Consequence, mbError, MB_OK);
 end;
 
+function XmlEscape(const S: String): String;
+begin
+  Result := S;
+  StringChangeEx(Result, '&', '&amp;', True); // must run first
+  StringChangeEx(Result, '<', '&lt;', True);
+  StringChangeEx(Result, '>', '&gt;', True);
+  StringChangeEx(Result, '"', '&quot;', True);
+end;
+
+// Under elevation this is the elevating admin, which is the account we want:
+// nobody else could satisfy HighestAvailable anyway.
+function CurrentUserAccount: String;
+begin
+  Result := GetEnv('USERDOMAIN') + '\' + GetEnv('USERNAME');
+end;
+
+// Hand-built because the schtasks CLI cannot express a group principal or the
+// battery settings below.
+function LogonTaskXml: String;
+var
+  Account, Principal, Trigger: String;
+begin
+  if AllUsersRadio.Checked then
+  begin
+    // BUILTIN\Administrators. LogonType is schema-invalid next to GroupId.
+    Principal := '<GroupId>S-1-5-32-544</GroupId>';
+    Trigger := '<LogonTrigger><Enabled>true</Enabled></LogonTrigger>';
+  end
+  else
+  begin
+    Account := XmlEscape(CurrentUserAccount);
+    Principal := '<UserId>' + Account + '</UserId>' +
+      '<LogonType>InteractiveToken</LogonType>';
+    // Scoped too; an open trigger would fire for users the principal cannot run as.
+    Trigger := '<LogonTrigger><Enabled>true</Enabled>' +
+      '<UserId>' + Account + '</UserId></LogonTrigger>';
+  end;
+
+  // Element order matters; the schema validates as a sequence. UTF-16 is not a
+  // typo: schtasks decodes the file before parsing, so UTF-8 here is rejected.
+  Result :=
+    '<?xml version="1.0" encoding="UTF-16"?>' +
+    '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">' +
+      '<RegistrationInfo>' +
+        '<Description>' + XmlEscape('{#MyAppName}') + '</Description>' +
+      '</RegistrationInfo>' +
+      '<Triggers>' + Trigger + '</Triggers>' +
+      '<Principals><Principal id="Author">' + Principal +
+        '<RunLevel>HighestAvailable</RunLevel></Principal></Principals>' +
+      '<Settings>' +
+        '<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>' +
+        // schtasks defaults these to true, skipping the task on battery.
+        '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>' +
+        '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>' +
+        '<StartWhenAvailable>true</StartWhenAvailable>' +
+        '<Enabled>true</Enabled>' +
+      '</Settings>' +
+      '<Actions Context="Author"><Exec>' +
+        '<Command>' +
+          XmlEscape(ExpandConstant('{app}\win11-toggle-rounded-corners.exe')) +
+        '</Command>' +
+        '<Arguments>' + XmlEscape(GetSelectedParameter('')) + '</Arguments>' +
+      '</Exec></Actions>' +
+    '</Task>';
+end;
+
 procedure CreateLogonTask;
 var
-  Params: String;
+  XmlPath: String;
+  Lines: TArrayOfString;
   ResultCode: Integer;
   Started: Boolean;
 begin
-  // /TR is one command line; single-quote the path so the args stay separable.
-  Params := '/Create /F /RL highest /SC onlogon' +
-    ' /TN ' + #34 + '{#LogonTaskName}' + #34 +
-    ' /TR ' + #34 + #39 + ExpandConstant('{app}\win11-toggle-rounded-corners.exe') + #39 +
-    ' ' + GetSelectedParameter('') + #34;
+  XmlPath := ExpandConstant('{tmp}\logon-task.xml');
 
-  Started := RunSchTasks(Params, ResultCode);
+  SetArrayLength(Lines, 1);
+  Lines[0] := LogonTaskXml;
+  // schtasks reads the encoding from the BOM this writes.
+  if not SaveStringsToUTF8File(XmlPath, Lines, False) then
+  begin
+    Log('The logon task could not be created. Setup could not write ' + XmlPath + '.');
+    if not WizardSilent then
+      MsgBox('The logon task could not be created.' + #13#10#13#10 +
+        'Setup could not write its task definition to ' + XmlPath + '.' + #13#10#13#10 +
+        'The tool is installed and works; it just will not start automatically at logon.',
+        mbError, MB_OK);
+    Exit;
+  end;
+
+  Started := RunSchTasks('/Create /F /TN ' + #34 + '{#LogonTaskName}' + #34 +
+    ' /XML ' + #34 + XmlPath + #34, ResultCode);
   ReportSchTasksFailure(Started, ResultCode, 'The logon task could not be created.',
     'The tool is installed and works; it just will not start automatically at logon.',
     WizardSilent);
+
+  DeleteFile(XmlPath);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
